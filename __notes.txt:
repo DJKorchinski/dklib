@@ -1,9 +1,0 @@
-__notes.txt:
-
-Some notes on initial set up of the git folder:
-
-Some notes on adding dklib as a submodule to a git project:
-
-Some notes on the future devlopment of the library:
-- There are are a bunch of utilities that ended up in the plothelp file, and some of these should probably be split into separate code files.
-    - mostly related to averaging over bins, estimating summary stats on histograms, etc. 
