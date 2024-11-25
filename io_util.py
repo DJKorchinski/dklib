@@ -1,6 +1,7 @@
-from typing import Iterable, List
+from typing import Callable, Iterable, List, TypeVar
+T = TypeVar('T')
 import pickle
-
+import pathlib
 
 def check_existence(fname: str) -> bool:
     """
@@ -10,19 +11,17 @@ def check_existence(fname: str) -> bool:
     Returns:
         bool: True if the file exists, False otherwise.
     """
-    import pathlib
-
     return pathlib.Path(fname).is_file()
 
 
 def load_series(
-    fname_function: function, iterator: Iterable, print_skips: bool = False
+    fname_function: Callable[[T], str], iterator: Iterable[T], print_skips: bool = False
 ) -> List:
     """
     Load a series of files from a given iterator.
     Parameters:
-        fname_function (function): A function that takes an element from the iterator and returns the file path to load.
-        iterator (Iterable): An iterator that yields elements to load.
+        fname_function (Callable[[T], str]): A function that takes an element from the iterator and returns the file path to load.
+        iterator (Iterable[T]): An iterator that yields elements to load.
     Returns:
         List: A list of the loaded data.
     """
@@ -31,7 +30,7 @@ def load_series(
         fname = fname_function(rep)
         if not check_existence(fname):
             if print_skips:
-                print("Skpping file, does not exist: ", fname)
+                print("Skipping file, does not exist: ", fname)
             continue
         with open(fname, "rb") as fh:
             data.append(pickle.load(fh))
