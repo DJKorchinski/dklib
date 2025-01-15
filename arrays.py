@@ -9,6 +9,13 @@ def listoflists(dimensions):
     else:
         return [ [] for i in range(0,lengths[0])]
 
+def flatten_list_of_lists(lst):
+    flattened = []
+    for sublist in lst:
+        flattened.extend(sublist)
+    return flattened
+
+
 #A should be a list of one-d lists (or np arrays)
 def flattenragged(A,arrdtype=np.int32):
     lens = np.array([np.shape(a)[0] for a in A],dtype=np.int32)
