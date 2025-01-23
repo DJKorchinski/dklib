@@ -276,7 +276,7 @@ def mask_all_single(
     att = tokenized_text["attention_mask"].to(pipeline.device)
     attention_replicates = att.expand(tokenized_replicates.shape)
     # computing the logits for the masked tokens:
-    print('\ntokenized replicates shape: ', tokenized_replicates.shape)
+    # print('\ntokenized replicates shape: ', tokenized_replicates.shape)
     with torch.no_grad():
         logits = pipeline.model.forward(tokenized_replicates, attention_replicates)["logits"]
     masked_logits = logits[
