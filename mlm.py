@@ -1,4 +1,3 @@
-
 import transformers
 import torch
 from typing import Optional, Union
@@ -172,7 +171,6 @@ def unmask_batch(
         substitutions[sent_ind, unmask_index, 3] = substitution_step
 
 
-
 def apply_substitutions(
     token_tensor: torch.LongTensor, substitutions: torch.LongTensor, state="final"
 ) -> None:
@@ -199,7 +197,6 @@ def apply_substitutions(
     # batch_size = token_tensor.shape[0]
     # for sent_ind in range(batch_size):
     #     token_tensor[sent_ind,substitutions[sent_ind,:,0]] = substitutions[sent_ind,:,substitution_index]
-
 
 
 def mask_unmask_monte_batch(
@@ -248,3 +245,43 @@ def mask_unmask_monte_batch(
         # is there any point saving the original masked token tensor? No. We can reconstruct it from the substitution tensor and by tokenizing the orignal sentences.
         return substitutions
 
+
+def mask_all_single(
+    text: str, pipeline: transformers.pipelines.fill_mask.FillMaskPipeline
+) -> tuple[torch.LongTensor, torch.DoubleTensor]:
+    """
+    Masks each token in the text, then performs inference on that masked token.
+
+    Args:
+        text (str): The source text for masking.
+        pipeline (transformers.pipelines.fill_mask.FillMaskPipeline): The unmasking pipeline.
+
+    Returns:
+        torch.LongTensor: The token ids that were masked in the sentence.
+        torch.DoubleTensor: The output logits from each masked token.
+    """
+    tokenizer = pipeline.tokenizer
+    mask_id = tokenizer.mask_token_id
+    tokenized_text = tokenizer(text, return_tensors="pt")
+    # sending the token tensors to the appropriate device.
+    tokens = tokenized_text["input_ids"].to(pipeline.device)
+    # here, we duplicate the tokenized text N-2 times, because we don't want to mask the start and end of sentence tokens.
+    tokenized_replicates = tokens.reshape(1, -1).repeat(tokens.size(1) - 2, 1)
+    # masking along the diagonal:
+    tokenized_replicates[
+        torch.arange(0, tokenized_replicates.shape[0]),
+        torch.arange(1, tokens.size(1) - 1),
+    ] = mask_id
+    # building the attention mask after sending the attention mask to the appropriate device.
+    att = tokenized_text["attention_mask"].to(pipeline.device)
+    attention_replicates = att.expand(tokenized_replicates.shape)
+    # computing the logits for the masked tokens:
+    print('\ntokenized replicates shape: ', tokenized_replicates.shape)
+    with torch.no_grad():
+        logits = pipeline.model.forward(tokenized_replicates, attention_replicates)["logits"]
+    masked_logits = logits[
+        torch.arange(0, tokenized_replicates.shape[0]),
+        torch.arange(1, tokens.size(1) - 1),
+        :,
+    ]
+    return tokens[0, 1:-1], masked_logits
