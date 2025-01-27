@@ -1,5 +1,5 @@
 import numpy as np 
-from plothelp import binCenters
+from dklib.plothelp import binCenters
 
 def binnedavg(tbins,times,quantity,geomean=False):
     counts,wcounts,w2counts = binnedavg_accumulate(tbins,times,quantity,geomean=geomean)
