@@ -152,6 +152,14 @@ def get_color_sequential_colormap(attribute,attribute_list,colormap = 'plasma',c
     cmax = cmap_range[1]
     return cmap(cmin + (cmax-cmin) * ind / (np.size(attribute_list)-1))
 
+def get_color_colormap(attribute,attribute_range, colormap='plasma',cmap_range = (0,1)):
+    cmap = colormap 
+    if(type(colormap) is str):
+        cmap = matplotlib.cm.get_cmap(colormap)
+    cmin = cmap_range[0]
+    cmax = cmap_range[1]
+    return cmap(cmin + (cmax-cmin) * (attribute - attribute_range[0]) / (attribute_range[1]-attribute_range[0]))
+
 
 def adjust_lightness(color, amount=0.5):
     import matplotlib.colors as mc
@@ -318,11 +326,33 @@ def tablelegend(ax, col_labels=None, row_labels=None, title_label="", *args, **k
 
 #stolen from: https://stackoverflow.com/questions/55501860/how-to-put-multiple-colormap-patches-in-a-matplotlib-legend
 #call with: plt.legend(handles=cmap_handles,             labels=cmap_labels,            handler_map=handler_map,  fontsize=12)
-
 from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 class HandlerColormap(HandlerBase):
+    """
+    A custom legend handler for colormaps.
+    This handler creates a legend entry that displays a colormap as a series of stripes.
+    Attributes:
+        cmap (Colormap): The colormap to be displayed in the legend.
+        num_stripes (int): The number of stripes to divide the colormap into. Default is 8.
+        cmap_range (tuple): The range of the colormap to display, as a tuple of two floats between 0 and 1. Default is (0, 1).
+    Methods:
+        create_artists(legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
+            Creates the artist objects to be displayed in the legend.
+        build_legend(handlers, labels, src=plt, **kw):
+            Builds the legend using the provided handlers and labels.
+    """
+
     def __init__(self, cmap, num_stripes=8, cmap_range=(0,1), **kw):
+        """
+        Initialize the handler with a colormap and other optional parameters.
+        Args:
+            cmap (matplotlib.colors.Colormap): The colormap to be used.
+            num_stripes (int, optional): The number of stripes to be used. Defaults to 8.
+            cmap_range (tuple, optional): The range of the colormap to be used. Defaults to (0, 1).
+            **kw: Additional keyword arguments passed to the base handler.
+        """
+
         HandlerBase.__init__(self, **kw)
         self.cmap = cmap
         self.num_stripes = num_stripes
@@ -343,3 +373,38 @@ class HandlerColormap(HandlerBase):
         cmap_handles = [Rectangle((0, 0), 1, 1) for _ in handlers]
         handler_map =  dict(zip(cmap_handles, handlers))
         return src.legend(handles=cmap_handles,handler_map=handler_map,labels=labels,**kw)
+
+
+
+def rainbow_text_linebreaks(strings, colors, ax = None, x0 = 0.01,y0 = 0.95, xmax = 0.98, **kw):
+    """
+    Take a list of ``strings`` and ``colors`` and place them next to each
+    other, with text strings[i] being shown in colors[i].
+
+    This will pass all keyword arguments to plt.text, so you can set the font size,
+    family, etc.
+
+    Will automatically jump to the next line 
+    """
+    from matplotlib import transforms
+    if(ax is None):
+        ax = plt.gca()
+    t  = ax.transAxes
+    transAxesInv = ax.transAxes.inverted()
+    trow = t
+    x,y = x0,y0 
+    for s,c in zip(strings,colors):
+        text = ax.text(x,y,s,color=c,transform=t,**kw)
+        ex = text.get_window_extent()
+        t=transforms.offset_copy(text._transform, x=ex.width, units='dots')
+        if(ex.transformed(transAxesInv).x1 > xmax):
+            #then, we exceeded the maximum x value, so we need to move to the next line.
+            #remove the text that was just added.
+            text.remove()
+            #offset the transform down one row
+            trow = transforms.offset_copy(trow, y=-ex.height, units='dots')
+            t = trow
+            #then reapply the text and increment the transform.
+            text = ax.text(x,y,s,color=c,transform=t,**kw)
+            ex = text.get_window_extent()
+            t=transforms.offset_copy(text._transform, x=ex.width, units='dots')
