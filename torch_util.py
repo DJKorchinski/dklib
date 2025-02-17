@@ -33,3 +33,15 @@ def get_param_count(module: nn.Module) -> int:
         int: The total number of parameters in the module.
     """
     return sum([ get_total_size(p) for p in module.parameters()])
+
+def hash_tensor(tensor: torch.Tensor) -> int:
+    """
+    Compute the hash of a PyTorch tensor.
+
+    Args:
+        tensor (torch.Tensor): The input tensor.
+
+    Returns:
+        int: The hash of the tensor.
+    """
+    return hash(tensor.numpy().tobytes())
