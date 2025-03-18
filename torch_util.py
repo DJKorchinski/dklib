@@ -60,10 +60,7 @@ def unique_tensors(tensors: list[torch.Tensor],initial_hashes:set|None = None,re
         tuple[list[torch.Tensor], set]: If return_hashes is True, returns a tuple containing the unique tensors and the set of unique hashes.
     """
     unique_tensors = []
-    if(initial_hashes is not None):
-        unique_hashes = initial_hashes
-    else:
-        unique_hashes = set()
+    unique_hashes = initial_hashes if initial_hashes is not None else set()
     for tensor in tensors:
         tensor_hash = hash_tensor(tensor)
         if tensor_hash not in unique_hashes:
