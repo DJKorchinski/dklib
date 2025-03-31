@@ -160,6 +160,19 @@ def get_color_colormap(attribute,attribute_range, colormap='plasma',cmap_range =
     cmax = cmap_range[1]
     return cmap(cmin + (cmax-cmin) * (attribute - attribute_range[0]) / (attribute_range[1]-attribute_range[0]))
 
+def get_color_cycle(index: int):
+    """
+    Retrieve a color from the current Matplotlib color cycle based on the given index.
+    The function uses the Matplotlib `axes.prop_cycle` property to access the default color cycle
+    and returns a color corresponding to the provided index. If the index exceeds the number of
+    colors in the cycle, it wraps around using modulo arithmetic.
+    Args:
+        index (int): The index of the desired color in the color cycle.
+    Returns:
+        str: A color from the Matplotlib color cycle, represented as a string (e.g., a hex color code).
+    """
+
+    return plt.rcParams['axes.prop_cycle'].by_key()['color'][index % len(plt.rcParams['axes.prop_cycle'].by_key()['color'])]
 
 def adjust_lightness(color, amount=0.5):
     import matplotlib.colors as mc
