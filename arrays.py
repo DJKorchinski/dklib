@@ -36,9 +36,6 @@ class ragged:
     
 
 
-
-
-
 @jit(nopython=True,cache=True)
 def sumreduce(L1,L2,L3):
     for i in range(L1.shape[0]):
@@ -50,3 +47,52 @@ def sumreduce_strided(L1,L2,L3,offset,stride):
     for j in range(offset,L1.shape[0],stride):
         L3[L2[j]]+=L1[j]
     return L3
+
+
+
+def multiinterp(x : np.ndarray,xp : np.ndarray,fp : np.ndarray,axis = 0):
+    """
+    Interpolates a tensorial quantity in 1D at the points `x`, given the sampling points `xp` and sampled values `fp`.
+    Parameters:
+    -----------
+    x : np.ndarray
+        An array-like object corresponding to the points where interpolation is desired.
+    xp : np.ndarray
+        A list or array of grid points where the function values are sampled.
+    fp : np.ndarray
+        An array of shape `(len(xp[0]), len(xp[1]), ...)` representing the function values at the grid points.
+    axis : int, optional
+        The axis along which to interpolate. Default is 0.
+    Returns:
+    --------
+    np.ndarray
+        The interpolated values at the points `x`.
+    Notes:
+    ------
+    - This function performs linear interpolation along the specified axis.
+    - The input `xp` is expected to be sorted in ascending order.
+    - The function uses broadcasting to handle multidimensional arrays.
+    Example:
+    --------
+    >>> import numpy as np
+    >>> x = np.array([2.5, 3.5])
+    >>> xp = np.array([1, 2, 3, 4])
+    >>> fp = np.array([10, 20, 30, 40])
+    >>> multiinterp(x, xp, fp)
+    array([25., 35.])
+    """
+    # print(x)
+    inds = np.searchsorted(xp,x,side='right')
+    inds = np.clip(inds, 1, len(xp)-1).astype(int)
+    #finding the left and right indices.
+    xp=np.array(xp)
+    xr = xp[inds]
+    xl = xp[inds-1]
+    yl,yr = np.take(fp, [inds-1, inds], axis=axis)
+    #permute the axes, so that the multiplication broadcasts correctly. 
+    yl,yr = np.moveaxis(yl,axis,-1), np.moveaxis(yr,axis,-1) 
+    #compute the linear interpolation
+    y = (xr-x)/(xr-xl) * yl + (x-xl)/(xr-xl) * yr
+    #and put the axes back
+    y = np.moveaxis(y,axis,-1)
+    return y
