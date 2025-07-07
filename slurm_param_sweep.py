@@ -1,0 +1,155 @@
+import argparse
+
+def add_steppable_params(base_parser:argparse.ArgumentParser, steppable_parameters, flaggable_parameters, parameter_types:dict ):
+    """
+        Adds steppable and flaggable parameters to a base argument parser.
+        Arguments:
+            base_parser (argparse.ArgumentParser):
+                The base parser to which parameters will be added.
+            steppable_parameters (list):
+                List of parameter names that can take a range of values.
+            flaggable_parameters (list):
+                List of parameter names that are boolean flags.
+            parameter_types (dict):
+                Dictionary mapping parameter names to their types.
+        Example: 
+            steppable_parameters = ['L','h', 'mask_density','replicate','lr','Ntrain','m','batch_size','weight_decay','representation_alignment_loss_weight','teacher_lag_final']
+            flaggable_parameters = ['conv_after_skip','masked_weighting','MF_weight_rescaling']
+            parameter_types = {'L':int,'h':int,'mask_density':float,'replicate':int,'lr':float, 'Ntrain':int,'m':int,'batch_size':int,'weight_decay':float,'representation_alignment_loss_weight':float,'teacher_lag_final':float,}
+    """
+    for param in steppable_parameters:
+        base_parser.add_argument(f'--{param}_min',type=parameter_types[param],default=None,help=f'Minimum value for {param}.')
+        base_parser.add_argument(f'--{param}_max',type=parameter_types[param],default=None,help=f'Maximum value for {param}.')
+        base_parser.add_argument(f'--{param}_Nstep',type=int,default=None,help=f'Number of steps for {param}.')
+        base_parser.add_argument(f'--{param}_geom',action='store_true',help=f'Vary the steps of {param} geometrically.')
+
+    for param in flaggable_parameters:
+        parameter_types[param] = bool
+        base_parser.add_argument(f'--{param}_vary',action='store_true',help=f'If set, will test {param} with both True and False.')
+    return base_parser
+
+def add_slurm_parameters(base_parser:argparse.ArgumentParser):
+    """
+    Add SLURM-related command-line arguments to an existing ArgumentParser.
+    Parameters
+    ----------
+    base_parser : argparse.ArgumentParser
+        The argument parser to augment with SLURM and job-splitting options.
+    Returns
+    -------
+    argparse.ArgumentParser
+        The same parser instance with the following additional arguments:
+          --N_jobs : int, default=1
+              Number of parallel jobs to split the workload across.
+          --job_index : int, default=0
+              Index of the current job in the parallel job set.
+          --min_job_index : int, default=0
+              Starting index for SLURM job arrays when the array index is non-zero.
+          --start_permutation_index : int, default=0
+              Index of the first permutation to run (for partial or restarted sweeps).
+          --end_permutation_index : int, default=None
+              Index of the last permutation to run; if None, runs through the final permutation.
+          --debug_params : bool (flag)
+              If set, prints the full parameter grid for debugging and exits immediately.
+          --output_filename_prefix : str, default=None
+              Prefix to prepend to output filenames when saving results.
+    """
+    
+
+    #splitting the job across multiple runs.
+    base_parser.add_argument('--N_jobs',type=int,default=1,help='Number of parallel jobs')
+    base_parser.add_argument('--job_index',type=int,default=0,help='Index of the current job')
+    base_parser.add_argument('--min_job_index',type=int,default=0,help='Index of the first worker -- relevant if we are running a slurm job array, where we start at a nonzero worker index.')
+    #sometimes we only want to run a subset of the indices, say to restart a failed or incomplete job.
+    base_parser.add_argument('--start_permutation_index',type=int,default=0,help='Index of the first permutation to run.')
+    base_parser.add_argument('--end_permutation_index',type=int,default=None,help='Index of the last permutation to run. If None, defaults to the last permutation.')
+    #debugging the parameters to sweep through.
+    base_parser.add_argument('--debug_params',action='store_true',help='If set, will print out the parameter grid and exit.')
+    #file output: 
+    base_parser.add_argument('--output_filename_prefix',type=str,default=None,help='Output file prefix to save the results.')
+    return base_parser 
+
+
+def build_parameter_grid(args, steppable_parameters, flaggable_parameters):
+    
+    #=== Setting up the parameter grid
+    import numpy as np 
+    param_grid = {}
+    for param in steppable_parameters:
+        if(getattr(args,f'{param}_min') is not None):
+            assert(getattr(args,f'{param}_max') is not None)
+            assert(getattr(args,f'{param}_Nstep') is not None)
+            if(getattr(args,f'{param}_geom')):
+                spacer_func = np.geomspace
+            else: 
+                spacer_func = np.linspace
+            param_grid[param] = spacer_func(getattr(args,f'{param}_min'),getattr(args,f'{param}_max'),getattr(args,f'{param}_Nstep'),dtype=parameter_types[param])
+    for param in flaggable_parameters: 
+        if(getattr(args,f'{param}_vary')):
+            param_grid[param] = np.array([True,False],dtype=bool)
+
+    import itertools
+    permutations = list(itertools.product( *param_grid.values() ))
+    N_permutations = len(permutations)
+    print('number of runnable permutations: ',N_permutations)
+
+    #selecting which permutations this iteration will run: 
+    if(args.end_permutation_index is None):
+        args.end_permutation_index = N_permutations
+    start_indices = np.linspace(args.start_permutation_index,args.end_permutation_index,args.N_jobs+1).astype(int)
+    inds_to_run = np.arange(start_indices[args.job_index-args.min_job_index],start_indices[args.job_index+1-args.min_job_index])
+    print('this thread will run indices: ',inds_to_run)
+    permutation_indices = np.arange(N_permutations)
+    permutations_to_run = permutations[start_indices[args.job_index-args.min_job_index]:start_indices[args.job_index+1-args.min_job_index]]
+    if(args.debug_params):
+        print(param_grid)
+        print(permutations)
+        print('this thread will run permuations: ',permutations_to_run)
+    return permutations_to_run, permutation_indices
+
+
+
+def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter_types, experiment_function, return_outputs=False, WALL_TIME_BUFFER=60):
+    
+    #adding additional sweep parameters to the base parser
+    base_parser = add_steppable_params(base_parser, steppable_parameters, flaggable_parameters, parameter_types)
+    base_parser = add_slurm_parameters(base_parser)
+    args = base_parser.parse_args()
+    #figuring out which parameters we need to run: 
+    permutations_to_run, inds_to_run = build_parameter_grid(args, steppable_parameters, flaggable_parameters)
+    
+    import time
+    wtime_start = time.time()
+    
+    #Setting the wall time limit
+    initial_max_walltime = args.wall_time_limit
+
+    def fname(permutation_ind):
+        return args.output_filename_prefix+f'permutation_{permutation_ind}.pkl'
+    
+    experiment_outputs = [] 
+    for i,permutation_ind in enumerate(inds_to_run):
+        permutation = permutations_to_run[i]
+        print('running permutation',i,'/',len(permutations_to_run),flush=True)
+        for param, value in zip(param_grid.keys(),permutation):
+            # if(args.debug_params):
+            print(param,parameter_types[param](value.item()))
+            setattr(args,param,parameter_types[param](value.item()))
+        if(not args.debug_params):
+            args.wall_time_limit = initial_max_walltime - (time.time()-wtime_start) - WALL_TIME_BUFFER
+            print('remaining wall time limit: %.1f'%args.wall_time_limit,'seconds')
+            if(args.wall_time_limit < WALL_TIME_BUFFER):
+                print('Wall time limit exceeded. Exiting.')
+                break
+            experiment_output = experiment_function(args)
+            if(args.output_filename_prefix is not None):
+                import pickle
+                output = experiment_output 
+                with open(fname(permutation_ind),'wb') as f:
+                    pickle.dump(output,f)
+            if(return_outputs):
+                experiment_outputs.append(experiment_output)
+        print('finished permutation',i,'/',len(permutations_to_run),flush=True)
+        print('===')
+    if(return_outputs):
+        return experiment_outputs
