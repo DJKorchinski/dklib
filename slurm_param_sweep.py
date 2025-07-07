@@ -55,6 +55,8 @@ def add_slurm_parameters(base_parser:argparse.ArgumentParser):
               Prefix to prepend to output filenames when saving results.
     """
     
+    #wall time related parameters: 
+    base_parser.add_argument('--wall_time_limit', type=int, default=300, help='Maximum wall time limit for the job in seconds. Default is 5 minutes.')
 
     #splitting the job across multiple runs.
     base_parser.add_argument('--N_jobs',type=int,default=1,help='Number of parallel jobs')
@@ -70,13 +72,25 @@ def add_slurm_parameters(base_parser:argparse.ArgumentParser):
     return base_parser 
 
 
-def build_parameter_grid(args, steppable_parameters, flaggable_parameters):
+def build_parameter_grid(args, steppable_parameters, flaggable_parameters, parameter_types):
     
     #=== Setting up the parameter grid
     import numpy as np 
     param_grid = {}
     for param in steppable_parameters:
         if(getattr(args,f'{param}_min') is not None):
+            if((getattr(args,f'{param}_max') is None or 
+               getattr(args,f'{param}_Nstep') is None)  and parameter_types[param] is int ):
+                if(getattr(args,f'{param}_max') is None and 
+                getattr(args,f'{param}_Nstep') is None):
+                    raise ValueError(f'Parameter {param} must have either a max or Nstep defined.')
+                elif (getattr(args,f'{param}_max') is None ):
+                    print('WARNING: Parameter %s is missing both _max, setting it equal to _min+_Nstep-1'%(param))
+                    setattr(args,f'{param}_max',getattr(args,f'{param}_min')+getattr(args,f'{param}_Nstep')-1)
+                elif (getattr(args,f'{param}_Nstep') is None and parameter_types[param] is int):
+                    print('WARNING: Parameter %s is missing _Nstep, setting it equal to _max - _min +1'%(param))
+                    setattr(args,f'{param}_Nstep', getattr(args,f'{param}_max')-getattr(args,f'{param}_min')+1)
+
             assert(getattr(args,f'{param}_max') is not None)
             assert(getattr(args,f'{param}_Nstep') is not None)
             if(getattr(args,f'{param}_geom')):
@@ -105,7 +119,7 @@ def build_parameter_grid(args, steppable_parameters, flaggable_parameters):
         print(param_grid)
         print(permutations)
         print('this thread will run permuations: ',permutations_to_run)
-    return permutations_to_run, permutation_indices
+    return permutations_to_run, permutation_indices, param_grid
 
 
 
@@ -153,7 +167,7 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
     base_parser = add_slurm_parameters(base_parser)
     args = base_parser.parse_args()
     #figuring out which parameters we need to run: 
-    permutations_to_run, inds_to_run = build_parameter_grid(args, steppable_parameters, flaggable_parameters)
+    permutations_to_run, inds_to_run, param_grid = build_parameter_grid(args, steppable_parameters, flaggable_parameters, parameter_types)
     
     import time
     wtime_start = time.time()
