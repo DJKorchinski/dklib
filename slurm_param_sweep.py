@@ -110,6 +110,43 @@ def build_parameter_grid(args, steppable_parameters, flaggable_parameters):
 
 
 def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter_types, experiment_function, return_outputs=False, WALL_TIME_BUFFER=60):
+    """
+    Run a parameter sweep over a grid of hyperparameters with SLURM support.
+    This function augments the provided argument parser with steppable and SLURM-specific
+    options, constructs all combinations of the specified parameters, and invokes the
+    given experiment function for each permutation. It manages the remaining wall time
+    to prevent job overruns, saves individual outputs to pickle files (if an output
+    filename prefix is provided), and optionally returns all outputs.
+    Args:
+        base_parser (argparse.ArgumentParser):
+            The initial argument parser to which sweep and SLURM parameters will be added.
+        steppable_parameters (Mapping[str, Iterable]):
+            A mapping from parameter names to sequences of values that define the sweep grid.
+        flaggable_parameters (Iterable[str]):
+            A list of parameter names that should be treated as boolean flags.
+        parameter_types (Mapping[str, Callable[[Any], Any]]):
+            A mapping from parameter names to type‐conversion functions for parsed values.
+        experiment_function (Callable[[argparse.Namespace], Any]):
+            A function that executes the experiment. It receives the parsed args namespace
+            (with parameters set for the current permutation) and returns an output object.
+        return_outputs (bool, optional):
+            If True, collect and return a list of outputs from each experiment run.
+            Defaults to False.
+        WALL_TIME_BUFFER (int, optional):
+            A safety margin (in seconds) subtracted from the SLURM wall time limit to
+            avoid overruns. Defaults to 60 seconds.
+    Returns:
+        List[Any] or None:
+            If return_outputs is True, returns a list of outputs from each call to
+            experiment_function. Otherwise, returns None.
+    Side Effects:
+        - Parses command-line arguments.
+        - Iterates through the parameter grid, setting attributes on the args namespace.
+        - Checks and updates the remaining wall time before each run.
+        - Prints progress and timing information to stdout.
+        - Saves each experiment's output to a pickle file named
+          '{output_filename_prefix}permutation_{index}.pkl' if a prefix is provided.
+    """
     
     #adding additional sweep parameters to the base parser
     base_parser = add_steppable_params(base_parser, steppable_parameters, flaggable_parameters, parameter_types)
