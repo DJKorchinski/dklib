@@ -85,10 +85,10 @@ def build_parameter_grid(args, steppable_parameters, flaggable_parameters, param
                 getattr(args,f'{param}_Nstep') is None):
                     raise ValueError(f'Parameter {param} must have either a max or Nstep defined.')
                 elif (getattr(args,f'{param}_max') is None ):
-                    print('WARNING: Parameter %s is missing both _max, setting it equal to _min+_Nstep-1'%(param))
+                    print('WARNING: Parameter %s_max is missing, setting it equal to _min+_Nstep-1'%(param))
                     setattr(args,f'{param}_max',getattr(args,f'{param}_min')+getattr(args,f'{param}_Nstep')-1)
                 elif (getattr(args,f'{param}_Nstep') is None and parameter_types[param] is int):
-                    print('WARNING: Parameter %s is missing _Nstep, setting it equal to _max - _min +1'%(param))
+                    print('WARNING: Parameter %s_Nstep is missing, setting it equal to _max - _min +1'%(param))
                     setattr(args,f'{param}_Nstep', getattr(args,f'{param}_max')-getattr(args,f'{param}_min')+1)
 
             assert(getattr(args,f'{param}_max') is not None)
