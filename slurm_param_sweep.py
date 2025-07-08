@@ -113,13 +113,12 @@ def build_parameter_grid(args, steppable_parameters, flaggable_parameters, param
     start_indices = np.linspace(args.start_permutation_index,args.end_permutation_index,args.N_jobs+1).astype(int)
     inds_to_run = np.arange(start_indices[args.job_index-args.min_job_index],start_indices[args.job_index+1-args.min_job_index])
     print('this thread will run indices: ',inds_to_run)
-    permutation_indices = np.arange(N_permutations)
     permutations_to_run = permutations[start_indices[args.job_index-args.min_job_index]:start_indices[args.job_index+1-args.min_job_index]]
     if(args.debug_params):
         print(param_grid)
         print(permutations)
         print('this thread will run permuations: ',permutations_to_run)
-    return permutations_to_run, permutation_indices, param_grid
+    return permutations_to_run, inds_to_run, param_grid
 
 
 
@@ -181,17 +180,19 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
     experiment_outputs = [] 
     for i,permutation_ind in enumerate(inds_to_run):
         permutation = permutations_to_run[i]
-        print('running permutation',i,'/',len(permutations_to_run),flush=True)
+        print('============')
+        print('starting permutation: %d. '%permutation_ind,'Thread job progress: ',i+1,'/',len(permutations_to_run), ' Parameters: ')
         for param, value in zip(param_grid.keys(),permutation):
-            # if(args.debug_params):
-            print(param,parameter_types[param](value.item()))
+            print(param+': ',parameter_types[param](value.item()))
             setattr(args,param,parameter_types[param](value.item()))
+        print('---',flush=True)
         if(not args.debug_params):
             args.wall_time_limit = initial_max_walltime - (time.time()-wtime_start) - WALL_TIME_BUFFER
             print('remaining wall time limit: %.1f'%args.wall_time_limit,'seconds')
             if(args.wall_time_limit < WALL_TIME_BUFFER):
                 print('Wall time limit exceeded. Exiting.')
                 break
+            wtime_experiment_start = time.time()
             experiment_output = experiment_function(args)
             if(args.output_filename_prefix is not None):
                 import pickle
@@ -200,7 +201,6 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
                     pickle.dump(output,f)
             if(return_outputs):
                 experiment_outputs.append(experiment_output)
-        print('finished permutation',i,'/',len(permutations_to_run),flush=True)
-        print('===')
+        print('finished permutation: %d. '%permutation_ind,'Thread job progress: ',i+1,'/',len(permutations_to_run), ' Total time elapsed: %.1f seconds, experiment took: %.1f seconds'%(time.time()-wtime_start, time.time()-wtime_experiment_start),flush=True)
     if(return_outputs):
         return experiment_outputs
