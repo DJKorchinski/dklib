@@ -1,6 +1,53 @@
 import numpy as np 
 from dklib.plothelp import binCenters
 
+def average(x,y,bins = None, prune_empty = False):
+    """
+    Compute the binned average and standard deviation of y with respect to x.
+    Parameters
+    ----------
+    x : array_like
+        1D array of independent variable values.
+    y : array_like
+        1D array of dependent variable values; must be the same shape as x.
+    bins : int or sequence of scalars, optional
+        If an integer, defines the number of equal-width bins between min(x) and max(x).
+        If a sequence, defines the bin edges directly.
+        If None, defaults to `np.linspace(np.min(x), np.max(x))`.
+        Default is None.
+    prune_empty : bool, optional
+        If True, remove any bins for which the computed average is zero (empty bins).
+        Default is False.
+    Returns
+    -------
+    binc : ndarray
+        Array of bin center values.
+    avg : ndarray
+        Array of mean y-values within each bin.
+    std : ndarray
+        Array of standard deviations of y within each bin.
+    Examples
+    --------
+    >>> x = np.array([0, 1, 2, 3, 4, 5])
+    >>> y = np.array([1, 2, 1, 2, 1, 2])
+    >>> binc, avg, std = average(x, y, bins=3)
+    """
+
+    if(bins is None):
+        bins = np.linspace(np.min(x),np.max(x))
+    elif(type(bins) is int):
+        bins = np.linspace(np.min(x),np.max(x),bins)
+    binc = binCenters(bins)
+    avg,std = binnedavg(bins,x,y)
+    if(prune_empty):
+        filt = avg>0
+        binc = binc[filt]
+        avg = avg[filt]
+        std = std[filt]
+    return binc,avg,std
+
+    
+
 def binnedavg(tbins,times,quantity,geomean=False):
     counts,wcounts,w2counts = binnedavg_accumulate(tbins,times,quantity,geomean=geomean)
     return binnedavg_compute(counts,wcounts,w2counts,geomean=geomean)
