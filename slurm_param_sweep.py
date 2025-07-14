@@ -201,6 +201,6 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
                     pickle.dump(output,f)
             if(return_outputs):
                 experiment_outputs.append(experiment_output)
-        print('finished permutation: %d. '%permutation_ind,'Thread job progress: ',i+1,'/',len(permutations_to_run), ' Total time elapsed: %.1f seconds, experiment took: %.1f seconds'%(time.time()-wtime_start, time.time()-wtime_experiment_start),flush=True)
+            print('finished permutation: %d. '%permutation_ind,'Thread job progress: ',i+1,'/',len(permutations_to_run), ' Total time elapsed: %.1f seconds, experiment took: %.1f seconds'%(time.time()-wtime_start, time.time()-wtime_experiment_start),flush=True)
     if(return_outputs):
         return experiment_outputs
