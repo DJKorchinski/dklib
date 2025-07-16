@@ -20,7 +20,7 @@ def get_total_size(tensor: torch.Tensor) -> int:
     Returns:
         int: The total number of elements in the tensor.
     """
-    return torch.prod(torch.tensor(tensor.shape)).item()
+    return int(torch.prod(torch.tensor(tensor.shape)).item())
 
 def get_param_count(module: nn.Module) -> int:
     """
