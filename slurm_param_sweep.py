@@ -189,7 +189,7 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
         if(not args.debug_params):
             args.wall_time_limit = initial_max_walltime - (time.time()-wtime_start) - WALL_TIME_BUFFER
             print('remaining wall time limit: %.1f'%args.wall_time_limit,'seconds')
-            if(args.wall_time_limit < WALL_TIME_BUFFER):
+            if(args.wall_time_limit < 0.0):
                 print('Wall time limit exceeded. Exiting.')
                 break
             wtime_experiment_start = time.time()
