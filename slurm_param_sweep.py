@@ -56,7 +56,14 @@ def add_slurm_parameters(base_parser:argparse.ArgumentParser):
     """
     
     #wall time related parameters: 
-    base_parser.add_argument('--wall_time_limit', type=int, default=300, help='Maximum wall time limit for the job in seconds. Default is 5 minutes.')
+    # Add wall_time_limit only if it's not already defined
+    if '--wall_time_limit' not in base_parser._option_string_actions:
+        base_parser.add_argument(
+            '--wall_time_limit',
+            type=int,
+            default=300,
+            help='Maximum wall time limit for the job in seconds. Default is 5 minutes.'
+        )
 
     #splitting the job across multiple runs.
     base_parser.add_argument('--N_jobs',type=int,default=1,help='Number of parallel jobs')
