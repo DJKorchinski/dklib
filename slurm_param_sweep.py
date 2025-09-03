@@ -76,6 +76,11 @@ def add_slurm_parameters(base_parser:argparse.ArgumentParser):
     base_parser.add_argument('--debug_params',action='store_true',help='If set, will print out the parameter grid and exit.')
     #file output: 
     base_parser.add_argument('--output_filename_prefix',type=str,default=None,help='Output file prefix to save the results.')
+    #Add an argument that allows us to associate tuples of parameters with each other. 
+    #The tuples need to be of the form (param1,param2,...), where each param is a parameter name.
+    #We also need to indicate whether the parameters that are swept together are done so in the forward or backwards direction.
+    # base_parser.add_argument('--sweep_tuples',type=str,default=None,help='A string representation of a list of tuples of parameters to sweep together. Each tuple should be of the form (param1,param2,...), where each param is a parameter name. The tuples should be separated by commas. If this argument is not provided, all varied parameters will be treated as independent sweep directions. No parameter should appear in more than one tuple.')
+    # base_parser.add_argument('--sweep_tuples_forward',type=str,default=None,help='A string represention of a list of tuples of parameters, each of which should be of the form (True,False,...). If set, each True/False indicates whether that parameter should be swept in the forward or reverse direction, and directions for all tuples must be specified. If this argument is not provided, all will be treated as forward.')
     return base_parser 
 
 
