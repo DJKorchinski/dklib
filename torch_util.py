@@ -80,3 +80,37 @@ def print_device_info(device: torch.device|str):
         print("Memory Usage:")
         print("Allocated:", round(torch.cuda.memory_allocated(0) / 1024**3, 1), "GB")
         print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024**3, 1), "GB")
+
+import pickle
+import io 
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == "torch.storage" and name == "_load_from_bytes":
+            return lambda b: torch.load(io.BytesIO(b), map_location="cpu", weights_only=False)
+        return super().find_class(module, name)
+
+def cpu_safe_unpickle(file_handle):
+    """
+    Unpickle a PyTorch object from a file handle, checking for GPUs and if unavailable, unpickling on CPU. 
+
+    Args:
+        file_handle: The file handle from which to unpickle the object.
+
+    Returns:
+        The unpickled PyTorch object.
+    """
+    if torch.cuda.is_available():
+        return pickle.load(file_handle)
+    return CPU_Unpickler(file_handle).load()
+
+def cpu_unpickle(file_handle):
+    """
+    Unpickle a PyTorch object from a file handle, ensuring compatibility with CPU.
+
+    Args:
+        file_handle: The file handle from which to unpickle the object.
+
+    Returns:
+        The unpickled PyTorch object.
+    """
+    return CPU_Unpickler(file_handle).load()
