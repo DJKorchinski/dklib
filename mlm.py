@@ -180,7 +180,7 @@ def unmask_batch(
 
 
 def apply_substitutions(
-    token_tensor: torch.LongTensor, substitutions: torch.LongTensor, state="final"
+    token_tensor: torch.LongTensor, substitutions: torch.LongTensor, state="final", sequential=False
 ) -> None:
     """Applies the mask-unmask substitutions to a token tensor, for instance to see the final text.
 
@@ -195,21 +195,31 @@ def apply_substitutions(
     assert state in {"final", "original"}
     substitution_index = 2 if state == "final" else 1
 
-    batch_indices = torch.arange(
-        token_tensor.shape[0], device=token_tensor.device
-    ).unsqueeze(1)
+    if not sequential: 
+        batch_indices = torch.arange(
+            token_tensor.shape[0], device=token_tensor.device
+        ).unsqueeze(1)
 
-    # we only want to apply the substitutions that were actually made, so we will mask out the -1 entries in substitutions[:,:,0]
-    mask = substitutions[:, :, 0] >= 0
-    batch_indices_expanded = batch_indices.expand(-1, substitutions.shape[1])
-    valid_batch_indices = batch_indices_expanded[mask]
-    valid_token_indices = substitutions[:, :, 0][mask]
-    valid_substitution_values = substitutions[:, :, substitution_index][mask]
-    token_tensor[valid_batch_indices, valid_token_indices] = valid_substitution_values
+        # we only want to apply the substitutions that were actually made, so we will mask out the -1 entries in substitutions[:,:,0]
+        mask = substitutions[:, :, 0] >= 0
+        batch_indices_expanded = batch_indices.expand(-1, substitutions.shape[1])
+        valid_batch_indices = batch_indices_expanded[mask]
+        valid_token_indices = substitutions[:, :, 0][mask]
+        valid_substitution_values = substitutions[:, :, substitution_index][mask]
+        token_tensor[valid_batch_indices, valid_token_indices] = valid_substitution_values
+    else: 
+        # in the sequential case, we have to do this one sentence at a time, because each sentence may have a different number of substitutions.
+        for sent_ind in range(token_tensor.shape[0]):
+            mask = substitutions[sent_ind,:,0] >= 0
+            token_indices = substitutions[sent_ind, :, 0][mask]
+            substitution_values = substitutions[sent_ind, :, substitution_index][mask]
+            token_tensor[sent_ind, token_indices] = substitution_values
+            token_tensor[sent_ind+1:, token_indices] = substitutions[sent_ind, :, 2][mask] #making sure we update all the later sentences to reflect the changes made so far.
 
     # batch_size = token_tensor.shape[0]
     # for sent_ind in range(batch_size):
     #     token_tensor[sent_ind,substitutions[sent_ind,:,0]] = substitutions[sent_ind,:,substitution_index]
+
 
 
 def mask_unmask_monte_batch(
@@ -325,6 +335,12 @@ def mask_unmask_monte_sequential(
         return substitutions, masked_token_tensor
     else:
         return substitutions
+
+def reconstruct_sequential_tensor_texts(initial_text, substitutions, pipeline):
+    token_tensor = torch.tensor(pipeline.tokenizer.encode(initial_text, add_special_tokens=True)).unsqueeze(0).to(substitutions.device)
+    token_tensor = token_tensor.repeat(substitutions.shape[0],1)
+    apply_substitutions(token_tensor, substitutions, state='final',sequential=True)
+    return token_tensor
 
 
 
