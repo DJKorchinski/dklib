@@ -311,7 +311,7 @@ def mask_unmask_monte_sequential(
 
         #now, we need to prepare the next step's masked_token_tensor[i+1,...] using the updated step_masked_token_tensor
         #and also update the substitutions[i+1,...] to reflect the changes made so far.
-        if(i < n-1):
+        if(i < sequential_iterations-1):
             # Then, we will initialize masked_token_tensor[i+1,...] using the updated step_masked_token_tensor
             masked_token_tensor[i+1] = step_masked_token_tensor[0]
             # However, that assignment overwrites the masking that we set up.
