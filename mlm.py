@@ -288,7 +288,6 @@ def mask_unmask_monte_sequential(
 
     masked_token_tensor, attention_tensor, substitutions = prepare_masked_batch([text]*sequential_iterations,num_masks, rng, pipeline.tokenizer, device=pipeline.device,)
     maximum_number_of_masks = substitutions.shape[1]
-    print(f"Original text: {text}")
     for i in range(sequential_iterations):
         # okay, we gotta take a slice from masked_token_tensor[i,...], attention_tensor[i,...], substitutions[i,...]
         # but leave that dimension in place of size 1, because the pipeline expects a batch dimension
