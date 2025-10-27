@@ -73,6 +73,7 @@ def add_slurm_parameters(base_parser:argparse.ArgumentParser):
     base_parser.add_argument('--start_permutation_index',type=int,default=0,help='Index of the first permutation to run.')
     base_parser.add_argument('--end_permutation_index',type=int,default=None,help='Index of the last permutation to run. If None, defaults to the last permutation.')
     base_parser.add_argument('--skip_existing_permutations',action='store_true',help='If set, will skip permutations for which output files already exist.')
+    base_parser.add_argument('--existing_permutations_output_prefix',type=str,default=None,help='If set, will look for existing output files with this prefix to determine which permutations to skip, instead of using the output_filename_prefix.')
     #debugging the parameters to sweep through.
     base_parser.add_argument('--debug_params',action='store_true',help='If set, will print out the parameter grid and exit.')
     #file output: 
@@ -187,8 +188,8 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
     #Setting the wall time limit
     initial_max_walltime = args.wall_time_limit
 
-    def fname(permutation_ind):
-        return args.output_filename_prefix+f'permutation_{permutation_ind}.pkl'
+    def fname(permutation_ind,prefix = args.output_filename_prefix):
+        return prefix+f'permutation_{permutation_ind}.pkl'
     
     experiment_outputs = [] 
     for i,permutation_ind in enumerate(inds_to_run):
@@ -207,8 +208,9 @@ def run_sweep(base_parser, steppable_parameters, flaggable_parameters, parameter
                 break
             if(args.skip_existing_permutations and args.output_filename_prefix is not None):
                 import os
-                if(os.path.exists(fname(permutation_ind))):
-                    print('Output file %s already exists. Skipping permutation %d.'%(fname(permutation_ind),permutation_ind))
+                prefix = args.existing_permutations_output_prefix if args.existing_permutations_output_prefix is not None else args.output_filename_prefix
+                if(os.path.exists(fname(permutation_ind,prefix=prefix))):
+                    print('Output file %s already exists. Skipping permutation %d.'%(fname(permutation_ind,prefix=prefix),permutation_ind))
                     continue
             wtime_experiment_start = time.time()
             experiment_output = experiment_function(args)
