@@ -136,6 +136,8 @@ def unmask_batch(
         pipeline (transformers.pipelines.fill_mask.FillMaskPipeline): unmasking pipeline.
         rng (torch.Generator): Random number generator for choosing the mask token on which to operate.
         substitution_step (int): What step in the substitution chain are we unmasking -- this is noted in substitutions(:,unmasked_index, 3).
+        dont_predict_special_tokens (bool): If True, special tokens will not be predicted during unmasking.
+        T (float): Temperature for sampling from the unmasking distribution.
     """
     logits = pipeline.model.forward(masked_token_tensor, attention_tensor)["logits"]
     batch_size = masked_token_tensor.shape[0]
@@ -245,6 +247,7 @@ def mask_unmask_monte_batch(
         num_masks (Union[int,  float]): Number of mask tokens to add to each text, or (if float) a probability between 0 and 1 for masking each token.
         rng (torch.Generator): The random number generator used to perform masking and to choose unmasked characters.
         return_tokens (bool): Return the token tensor as well.
+        T (float): Temperature for sampling from the unmasking distribution.
 
     Returns:
         torch.LongTensor: The substitutions tensor, of shape [batch_size = len(texts), num_masks, 4 ].
@@ -283,6 +286,7 @@ def mask_unmask_monte_sequential(
         num_masks : Union[int,float],
         rng : torch.Generator,
         return_tokens : bool = False,
+        dont_predict_special_tokens : bool = True,
         T : float = 1.0,
 ) -> Union[torch.LongTensor, tuple[torch.LongTensor, torch.LongTensor]]:
     """
@@ -294,6 +298,8 @@ def mask_unmask_monte_sequential(
         num_masks (Union[int, float]): Number of mask tokens to add to each text, or (if float) a probability between 0 and 1 for masking each token.
         rng (torch.Generator): The random number generator used to perform masking and to choose unmasked characters.
         return_tokens (bool): Return the token tensor as well.
+        dont_predict_special_tokens (bool): If True, special tokens will not be predicted during unmasking.
+        T (float): Temperature for sampling from the unmasking distribution.
 
     Returns:
         torch.LongTensor: The substitutions tensor, of shape [unmasking_steps, num_masks, 4 ].
@@ -321,6 +327,7 @@ def mask_unmask_monte_sequential(
                 pipeline,
                 rng,
                 substitution_step,
+                dont_predict_special_tokens=dont_predict_special_tokens,
                 T = T,
             )
         substitutions[i] = step_substitutions.squeeze(0)
