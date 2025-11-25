@@ -256,8 +256,23 @@ def mask_unmask_monte_batch(
     max_kept: int = 100,
 ) -> Union[torch.LongTensor, tuple]:
     """
-    Runs a mask-unmask monte carlo experiment on a set of texts using a fill mask pipeline,
-    optionally storing top token IDs and probabilities.
+    Runs a mask-unmask monte carlo experiment on a set of texts using a fill mask pipeline.
+
+    Args:
+        texts (list[str]): The set of texts on which to act.
+        pipeline (transformers.pipelines.fill_mask.FillMaskPipeline): The fill mask pipeline.
+        num_masks (Union[int,  float]): Number of mask tokens to add to each text, or (if float) a probability between 0 and 1 for masking each token.
+        rng (torch.Generator): The random number generator used to perform masking and to choose unmasked characters.
+        return_tokens (bool): Return the token tensor as well.
+        T (float): Temperature for sampling from the unmasking distribution.
+
+    Returns:
+        torch.LongTensor: The substitutions tensor, of shape [batch_size = len(texts), num_masks, 4 ].
+        Last index is:
+          0: masked token position in sentence (-1 indicates no masking was needed due to batching),
+          1: original token id,
+          2: replacement token id,
+          3: unmasking step number at time of unmasking.
     """
     masked_token_tensor, attention_tensor, substitutions = prepare_masked_batch(
         texts, num_masks, rng, pipeline.tokenizer, pipeline.device
@@ -310,8 +325,23 @@ def mask_unmask_monte_sequential(
         max_kept: int = 100,                # added
 ) -> Union[torch.LongTensor, tuple]:
     """
-    Runs a mask-unmask monte carlo experiment on a single text using sequential unmasking,
-    optionally storing top token IDs and probabilities.
+    Runs a mask-unmask monte carlo experiment on a single text using a fill mask pipeline, using sequential unmasking.
+    Args:
+        text (str): The text on which to act.
+        pipeline (transformers.pipelines.fill_mask.FillMaskPipeline): The fill mask pipeline.
+        num_masks (Union[int, float]): Number of mask tokens to add to each text, or (if float) a probability between 0 and 1 for masking each token.
+        rng (torch.Generator): The random number generator used to perform masking and to choose unmasked characters.
+        return_tokens (bool): Return the token tensor as well.
+        dont_predict_special_tokens (bool): If True, special tokens will not be predicted during unmasking.
+        T (float): Temperature for sampling from the unmasking distribution.
+
+    Returns:
+        torch.LongTensor: The substitutions tensor, of shape [unmasking_steps, num_masks, 4 ].
+        Last index is:
+          0: masked token position in sentence (-1 indicates no masking was needed due to batching),
+          1: original token id,
+          2: replacement token id,
+          3: unmasking step number at time of unmasking.
     """
     masked_token_tensor, attention_tensor, substitutions = prepare_masked_batch(
         [text]*sequential_iterations, num_masks, rng, pipeline.tokenizer, device=pipeline.device
