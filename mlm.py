@@ -182,8 +182,9 @@ def unmask_batch(
             sorted_probs, sorted_ids = torch.sort(probs, descending=True)
             kept_ids = sorted_ids[:max_kept]
             kept_probs = sorted_probs[:max_kept]
-            top_token_ids[sent_ind, unmask_index, :kept_ids.shape[0]] = kept_ids
-            top_token_probs[sent_ind, unmask_index, :kept_probs.shape[0]] = kept_probs
+            top_token_ids[0, unmask_index, :kept_ids.shape[0]] = kept_ids
+            top_token_probs[0, unmask_index, :kept_probs.shape[0]] = kept_probs
+
 
         if(T == 0):
             new_token_id = torch.argmax(
@@ -351,9 +352,12 @@ def mask_unmask_monte_sequential(
     # Optional top token storage
     top_token_ids = None
     top_token_probs = None
+    device = pipeline.device
     if return_top_tokens:
-        top_token_ids = torch.zeros((sequential_iterations, maximum_number_of_masks, max_kept), dtype=torch.long)
-        top_token_probs = torch.zeros((sequential_iterations, maximum_number_of_masks, max_kept), dtype=torch.float32)
+        top_token_ids = torch.zeros((sequential_iterations, maximum_number_of_masks, max_kept),
+                                    dtype=torch.long, device=device)
+        top_token_probs = torch.zeros((sequential_iterations, maximum_number_of_masks, max_kept),
+                                    dtype=torch.float32, device=device)
 
     for i in range(sequential_iterations):
         # slice to maintain batch dimension
