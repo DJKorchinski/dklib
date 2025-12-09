@@ -124,6 +124,7 @@ def unmask_batch(
     rng: torch.Generator,
     substitution_step: int,
     dont_predict_special_tokens : bool = True, 
+    T : float = 1.0,
 ):
     """
     Unmasks  single random token from each sentence in the batch, updating the masked_token_tensor in place and updating the substitution tensor.
@@ -167,12 +168,17 @@ def unmask_batch(
         if(dont_predict_special_tokens):
             # print('logit shape: ',logits.shape, logits_pre_pmf.shape, illegal_tokens)
             logits_pre_pmf[illegal_tokens] = -1e10 # very small number, so that these tokens are never selected.
-        new_token_pmf = (
-            logits_pre_pmf.squeeze().softmax(0)
-        )  # probability mass function of new tokens.
-        new_token_id = torch.multinomial(
-            new_token_pmf, 1, False, generator=rng
-        )  # sampling a single token
+        if(T == 0):
+            new_token_id = torch.argmax(
+                logits_pre_pmf.squeeze()
+            )  # picking the most likely token
+        else:
+            new_token_pmf = (
+                (logits_pre_pmf.squeeze()/T).softmax(0)
+            )  # probability mass function of new tokens.
+            new_token_id = torch.multinomial(
+                new_token_pmf, 1, False, generator=rng
+            )  # sampling a single token
         masked_token_tensor[sent_ind, token_index_in_sent] = substitutions[
             sent_ind, unmask_index, 2
         ] = new_token_id  # performing the substitution
@@ -228,6 +234,7 @@ def mask_unmask_monte_batch(
     num_masks: Union[int | float],
     rng: torch.Generator,
     return_tokens: bool = False,
+    T:float = 1.0,
 ) -> Union[torch.LongTensor, tuple[torch.LongTensor, torch.LongTensor]]:
     """
     Runs a mask-unmask monte carlo experiment on a set of texts using a fill mask pipeline.
@@ -260,6 +267,7 @@ def mask_unmask_monte_batch(
             pipeline,
             rng,
             substitution_step,
+            T = T,
         )
 
     if return_tokens:
@@ -275,6 +283,7 @@ def mask_unmask_monte_sequential(
         num_masks : Union[int,float],
         rng : torch.Generator,
         return_tokens : bool = False,
+        T : float = 1.0,
 ) -> Union[torch.LongTensor, tuple[torch.LongTensor, torch.LongTensor]]:
     """
     Runs a mask-unmask monte carlo experiment on a single text using a fill mask pipeline, using sequential unmasking.
@@ -312,6 +321,7 @@ def mask_unmask_monte_sequential(
                 pipeline,
                 rng,
                 substitution_step,
+                T = T,
             )
         substitutions[i] = step_substitutions.squeeze(0)
         masked_token_tensor[i] = step_masked_token_tensor.squeeze(0)
